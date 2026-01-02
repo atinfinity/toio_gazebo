@@ -4,11 +4,7 @@
 
 This is a ROS 2 Package to develop package of [toio](https://toio.io/) using Gazebo.
 
-
-
 https://github.com/user-attachments/assets/63909751-a5ec-49ca-8c24-c2067247fe8e
-
-
 
 ## Requirements
 
