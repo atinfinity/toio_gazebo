@@ -50,6 +50,7 @@ def generate_launch_description():
     use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
     headless = LaunchConfiguration('headless')
     world = LaunchConfiguration('world')
+    world_frame = LaunchConfiguration('world_frame')
     pose = {
         'x': LaunchConfiguration('x_pose', default='0.00'),
         'y': LaunchConfiguration('y_pose', default='0.00'),
@@ -105,6 +106,12 @@ def generate_launch_description():
         description='Full path to world model file to load',
     )
 
+    declare_world_frame_cmd = DeclareLaunchArgument(
+        'world_frame',
+        default_value='depot',
+        description='frame_id of world',
+    )
+
     declare_robot_name_cmd = DeclareLaunchArgument(
         'robot_name', default_value='toio', description='name of the robot'
     )
@@ -127,6 +134,22 @@ def generate_launch_description():
              'robot_description': Command(['xacro', ' ', robot_sdf])}
         ],
         remappings=remappings,
+    )
+
+    map_static_transform_publisher_cmd = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name='map_static_transform_publisher',
+        output="screen",
+        arguments=['0','0','0','0','0','0','map','depot'],
+    )
+
+    center_static_transform_publisher_cmd = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name='center_static_transform_publisher',
+        output="screen",
+        arguments=['0','0','0','0','0','0','toio','center'],
     )
 
     # The SDF file for the world is a xacro file because we wanted to
@@ -199,5 +222,7 @@ def generate_launch_description():
 
     # Add the actions to launch all of the navigation nodes
     ld.add_action(start_robot_state_publisher_cmd)
+    ld.add_action(map_static_transform_publisher_cmd)
+    ld.add_action(center_static_transform_publisher_cmd)
 
     return ld
