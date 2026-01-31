@@ -141,7 +141,7 @@ def generate_launch_description():
         executable="static_transform_publisher",
         name='map_static_transform_publisher',
         output="screen",
-        arguments=['0','0','0','0','0','0','map','depot'],
+        arguments=['0', '0', '0', '0', '0', '0', 'map', world_frame],
     )
 
     center_static_transform_publisher_cmd = Node(
@@ -149,7 +149,7 @@ def generate_launch_description():
         executable="static_transform_publisher",
         name='center_static_transform_publisher',
         output="screen",
-        arguments=['0','0','0','0','0','0','toio','center'],
+        arguments=['0', '0', '0', '0', '0', '0', 'toio','center'],
     )
 
     # The SDF file for the world is a xacro file because we wanted to
@@ -210,6 +210,7 @@ def generate_launch_description():
     ld.add_action(declare_use_robot_state_pub_cmd)
     ld.add_action(declare_simulator_cmd)
     ld.add_action(declare_world_cmd)
+    ld.add_action(declare_world_frame_cmd)
     ld.add_action(declare_robot_name_cmd)
     ld.add_action(declare_robot_sdf_cmd)
 
