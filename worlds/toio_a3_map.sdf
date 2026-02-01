@@ -59,19 +59,19 @@
     </model>
     <model name="wall_0">
       <static>true</static>
-      <pose>0.20750000000000002 0.0030000000000000027 0.025 0 0 0.0</pose>
+      <pose>0.20750000000000002 0.0 0.01 0 0 0.0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.395 0.01 0.05</size>
+              <size>0.395 0.01 0.02</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.395 0.01 0.05</size>
+              <size>0.395 0.01 0.02</size>
             </box>
           </geometry>
           <material>
@@ -83,19 +83,19 @@
     </model>
     <model name="wall_1">
       <static>true</static>
-      <pose>0.20750000000000002 -0.287 0.025 0 0 0.0</pose>
+      <pose>0.20750000000000002 -0.29 0.01 0 0 0.0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.405 0.01 0.05</size>
+              <size>0.405 0.01 0.02</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.405 0.01 0.05</size>
+              <size>0.405 0.01 0.02</size>
             </box>
           </geometry>
           <material>
@@ -107,19 +107,19 @@
     </model>
     <model name="wall_2">
       <static>true</static>
-      <pose>0.0 -0.1445 0.025 0 0 1.5707963267948966</pose>
+      <pose>0.0 -0.1475 0.01 0 0 1.5707963267948966</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.27499999999999997 0.01 0.05</size>
+              <size>0.27499999999999997 0.01 0.02</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.27499999999999997 0.01 0.05</size>
+              <size>0.27499999999999997 0.01 0.02</size>
             </box>
           </geometry>
           <material>
@@ -131,19 +131,19 @@
     </model>
     <model name="wall_3">
       <static>true</static>
-      <pose>0.41000000000000003 -0.142 0.025 0 0 1.5707963267948966</pose>
+      <pose>0.41000000000000003 -0.145 0.01 0 0 1.5707963267948966</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.27999999999999997 0.01 0.05</size>
+              <size>0.27999999999999997 0.01 0.02</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.27999999999999997 0.01 0.05</size>
+              <size>0.27999999999999997 0.01 0.02</size>
             </box>
           </geometry>
           <material>
