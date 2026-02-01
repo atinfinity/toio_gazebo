@@ -102,13 +102,13 @@ def generate_launch_description():
 
     declare_world_cmd = DeclareLaunchArgument(
         'world',
-        default_value=os.path.join(sim_dir, 'worlds', 'depot.sdf'),
+        default_value=os.path.join(sim_dir, 'worlds', 'toio_a4_map.sdf'),
         description='Full path to world model file to load',
     )
 
     declare_world_frame_cmd = DeclareLaunchArgument(
         'world_frame',
-        default_value='depot',
+        default_value='toio_a4_map',
         description='frame_id of world',
     )
 
