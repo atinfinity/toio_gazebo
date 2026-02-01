@@ -35,5 +35,5 @@ ros2 launch toio_gazebo simulation.launch.py world:=<WORLD_SDF_FILEPATH> world_f
 An example of input is as follows:
 
 ```bash
-ros2 launch toio_gazebo simulation.launch.py world:=$HOME/dev_ws/src/toio_gazebo/worlds/depot.sdf world_frame:=depot
+ros2 launch toio_gazebo simulation.launch.py world:=$HOME/dev_ws/src/toio_gazebo/worlds/toio_a4_map.sdf world_frame:=toio_a4_map
 ```
