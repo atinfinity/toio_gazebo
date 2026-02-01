@@ -29,5 +29,11 @@ source ~/dev_ws/install/setup.bash
 ## Launch Gazebo
 
 ```bash
-ros2 launch toio_gazebo simulation.launch.py
+ros2 launch toio_gazebo simulation.launch.py world:=<WORLD_SDF_FILEPATH> world_frame:=<WOLRD_FRAME_NAME>
+```
+
+An example of input is as follows:
+
+```bash
+ros2 launch toio_gazebo simulation.launch.py world:=$HOME/dev_ws/src/toio_gazebo/worlds/toio_a4_map.sdf world_frame:=toio_a4_map
 ```
