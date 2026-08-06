@@ -29,7 +29,6 @@ from launch.actions import (
 from launch.conditions import IfCondition
 from launch.event_handlers import OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command
 from launch.substitutions import LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
@@ -61,17 +60,7 @@ def generate_launch_description():
     }
     robot_name = LaunchConfiguration('robot_name')
     robot_sdf = LaunchConfiguration('robot_sdf')
-
-    # Map fully qualified names to relative ones so the node's namespace can be prepended.
-    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
-    # https://github.com/ros/geometry2/issues/32
-    # https://github.com/ros/robot_state_publisher/pull/30
-    # TODO(orduno) Substitute with `PushNodeRemapping`
-    #              https://github.com/ros2/launch_ros/issues/56
-    remappings = [
-        ("/tf", "tf"),
-        ("/tf_static", "tf_static"),
-    ]
+    frame_prefix = LaunchConfiguration('frame_prefix')
 
     # Declare the launch arguments
     declare_namespace_cmd = DeclareLaunchArgument(
@@ -122,34 +111,29 @@ def generate_launch_description():
         description='Full path to robot sdf file to spawn the robot in gazebo',
     )
 
-    start_robot_state_publisher_cmd = Node(
-        condition=IfCondition(use_robot_state_pub),
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        namespace=namespace,
+    declare_frame_prefix_cmd = DeclareLaunchArgument(
+        'frame_prefix',
+        default_value='',
+        description='Prefix of the TF frames (e.g. "toio1/")',
+    )
+
+    # The clock is shared by all robots, so it is bridged here instead of
+    # spawn_toio.launch.py to avoid duplicated bridges in multi-robot setup.
+    clock_bridge = Node(
+        condition=IfCondition(use_simulator),
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='clock_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
         output='screen',
-        parameters=[
-            {'use_sim_time': use_sim_time,
-             'robot_description': Command(['xacro', ' ', robot_sdf])}
-        ],
-        remappings=remappings,
     )
 
     map_static_transform_publisher_cmd = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
+        package='tf2_ros',
+        executable='static_transform_publisher',
         name='map_static_transform_publisher',
-        output="screen",
+        output='screen',
         arguments=['0', '0', '0', '0', '0', '0', 'map', world_frame],
-    )
-
-    center_static_transform_publisher_cmd = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name='center_static_transform_publisher',
-        output="screen",
-        arguments=['0', '0', '0', '0', '0', '0', 'toio','center'],
     )
 
     # The SDF file for the world is a xacro file because we wanted to
@@ -191,7 +175,9 @@ def generate_launch_description():
         launch_arguments={'namespace': namespace,
                           'use_simulator': use_simulator,
                           'use_sim_time': use_sim_time,
+                          'use_robot_state_pub': use_robot_state_pub,
                           'robot_name': robot_name,
+                          'frame_prefix': frame_prefix,
                           'robot_sdf': robot_sdf,
                           'x_pose': pose['x'],
                           'y_pose': pose['y'],
@@ -212,6 +198,7 @@ def generate_launch_description():
     ld.add_action(declare_world_cmd)
     ld.add_action(declare_world_frame_cmd)
     ld.add_action(declare_robot_name_cmd)
+    ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_robot_sdf_cmd)
 
     ld.add_action(set_env_vars_resources)
@@ -221,9 +208,7 @@ def generate_launch_description():
     ld.add_action(gazebo_server)
     ld.add_action(gazebo_client)
 
-    # Add the actions to launch all of the navigation nodes
-    ld.add_action(start_robot_state_publisher_cmd)
+    ld.add_action(clock_bridge)
     ld.add_action(map_static_transform_publisher_cmd)
-    ld.add_action(center_static_transform_publisher_cmd)
 
     return ld
