@@ -85,6 +85,8 @@ ros2 topic pub --once /toio/sound std_msgs/msg/UInt8 '{data: 6}'
 ros2 launch toio_gazebo simulation.launch.py led_duration_ms:=500
 ```
 
+![The indicator of the cube blinking through a sequence of colors](image/toio_led.gif)
+
 ### Notes on the LED and the sound effects
 
 The lamp is the ball on the underside of the cube, as
@@ -93,9 +95,11 @@ describes it, and is driven by the `ToioLedSystem` Gazebo plugin of this
 package. Only the cap below the flat underside is visible, so it is best seen
 from a low angle.
 
-The plugin drives a light along with the visual, so the lamp washes the mat
-around the cube in its color, faintly and over a good part of it, rather than
-only lighting up itself. Set `led_light_intensity:=0` to leave the mat alone.
+The plugin drives a light along with the visual, so the mat picks up the color
+of the lamp rather than the lamp only lighting up itself. As on the real cube,
+the mat right under it takes a strong spot about the size of the lamp, which
+fades out over roughly the size of the cube. Set `led_light_intensity:=0` to
+leave the mat alone.
 The way the plugin drives the material and the light through
 `components::VisualCmd` and `components::LightCmd` follows
 [gz_sim_led_plugin](https://github.com/jasmeet0915/gz_sim_led_plugin)
