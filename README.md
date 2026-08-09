@@ -86,9 +86,12 @@ ros2 launch toio_gazebo simulation.launch.py led_duration_ms:=500
 
 ### Notes on the LED and the sound effects
 
-The indicator is a visual on the front of the cube, driven by the
-`ToioLedSystem` Gazebo plugin of this package. The way the plugin drives the
-material through `components::VisualCmd` follows
+The lamp is the ball on the underside of the cube, as
+[the specification](https://toio.github.io/toio-spec/en/docs/ble_light/)
+describes it, and is driven by the `ToioLedSystem` Gazebo plugin of this
+package. Only the cap below the flat underside is visible, so it is best seen
+from a low angle. The way the plugin drives the material through
+`components::VisualCmd` follows
 [gz_sim_led_plugin](https://github.com/jasmeet0915/gz_sim_led_plugin)
 (Apache License 2.0).
 
