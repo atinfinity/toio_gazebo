@@ -37,6 +37,7 @@ def launch_setup(context, *args, **kwargs):
     frame_prefix = LaunchConfiguration('frame_prefix').perform(context)
     robot_sdf = LaunchConfiguration('robot_sdf').perform(context)
     led_duration_ms = LaunchConfiguration('led_duration_ms').perform(context)
+    led_light_intensity = LaunchConfiguration('led_light_intensity').perform(context)
     sound_volume = int(LaunchConfiguration('sound_volume').perform(context))
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_simulator = LaunchConfiguration('use_simulator')
@@ -103,7 +104,8 @@ def launch_setup(context, *args, **kwargs):
              'robot_description': ParameterValue(
                  Command(
                      ['xacro', ' ', robot_sdf, ' ', 'robot_name:=', robot_name,
-                      ' ', 'led_duration_ms:=', led_duration_ms]),
+                      ' ', 'led_duration_ms:=', led_duration_ms,
+                      ' ', 'led_light_intensity:=', led_light_intensity]),
                  value_type=str)}
         ],
     )
@@ -222,6 +224,13 @@ def generate_launch_description():
                     '0 keeps it lit until the next command, 10-2550 turns it '
                     'off once the time has elapsed')
 
+    declare_led_light_intensity_cmd = DeclareLaunchArgument(
+        'led_light_intensity',
+        default_value='1.0',
+        description='Intensity of the light of the indicator lamp while it is '
+                    'lit. 0 leaves the lamp lighting up only itself, without '
+                    'casting color on the mat around the cube')
+
     declare_sound_volume_cmd = DeclareLaunchArgument(
         'sound_volume',
         default_value='255',
@@ -236,6 +245,7 @@ def generate_launch_description():
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_robot_sdf_cmd)
     ld.add_action(declare_led_duration_ms_cmd)
+    ld.add_action(declare_led_light_intensity_cmd)
     ld.add_action(declare_sound_volume_cmd)
     ld.add_action(declare_use_simulator_cmd)
     ld.add_action(declare_use_sim_time_cmd)

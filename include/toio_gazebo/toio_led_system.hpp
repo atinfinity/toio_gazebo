@@ -34,6 +34,9 @@ class ToioLedSystemPrivate;
 /// Colors are taken as 0.0-1.0 per channel. An all zero color turns the LED
 /// off, which restores the material the visual was loaded with.
 ///
+/// A light can be driven along with the visual, so that the lamp also casts
+/// color onto what is around it instead of only lighting up itself.
+///
 /// ## System Parameters
 ///
 /// <plugin filename="ToioLedSystem" name="toio_gazebo::ToioLedSystem">
@@ -44,6 +47,13 @@ class ToioLedSystemPrivate;
 ///        into its parent link when a URDF is converted to SDF, so the visual
 ///        is matched by substring instead of by its exact generated name. -->
 ///   <led_visual>led</led_visual>
+///
+///   <!-- Substring identifying the light to drive along with the visual.
+///        Optional; without a matching light only the visual changes. -->
+///   <led_light>led_light</led_light>
+///
+///   <!-- Intensity the light is driven at while the LED is lit. -->
+///   <led_light_intensity>1.0</led_light_intensity>
 ///
 ///   <!-- Lighting time in milliseconds. 0 keeps the LED lit until the next
 ///        command, 10-2550 turns it off once the time has elapsed. -->

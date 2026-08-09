@@ -26,6 +26,7 @@
 
 // cpplint mistakes the generated protobuf headers for C system headers.
 #include <gz/msgs/color.pb.h>  // NOLINT(build/include_order)
+#include <gz/msgs/light.pb.h>  // NOLINT(build/include_order)
 #include <gz/msgs/visual.pb.h>  // NOLINT(build/include_order)
 
 #include <gz/math/Color.hh>
@@ -34,9 +35,12 @@
 #include <gz/transport/Node.hh>
 #include <gz/transport/TopicUtils.hh>
 
+#include <gz/sim/Conversions.hh>
 #include <gz/sim/EntityComponentManager.hh>
 #include <gz/sim/Model.hh>
 #include <gz/sim/Util.hh>
+#include <gz/sim/components/Light.hh>
+#include <gz/sim/components/LightCmd.hh>
 #include <gz/sim/components/Material.hh>
 #include <gz/sim/components/Name.hh>
 #include <gz/sim/components/ParentEntity.hh>
@@ -80,9 +84,15 @@ public:
   /// \brief Callback for the LED color topic.
   void OnLedColor(const gz::msgs::Color & _msg);
 
-  /// \brief Look up the LED visual below the model of this plugin. Visuals do
-  /// not exist yet while Configure runs, so this is retried until it succeeds.
-  void ResolveLedVisual(const gz::sim::EntityComponentManager & _ecm);
+  /// \brief Look up the LED visual and light below the model of this plugin.
+  /// Neither exists yet while Configure runs, so this is retried until the
+  /// visual is found.
+  void ResolveLedEntities(const gz::sim::EntityComponentManager & _ecm);
+
+  /// \brief Find the entity below the model whose name contains _name.
+  gz::sim::Entity FindNamed(
+    const gz::sim::EntityComponentManager & _ecm, const std::string & _name,
+    bool _light) const;
 
   /// \brief Whether _entity is the model of this plugin or below it.
   bool BelongsToModel(
@@ -91,6 +101,12 @@ public:
   /// \brief Request a material for the LED visual through components::VisualCmd.
   void SetVisualMaterial(
     gz::sim::EntityComponentManager & _ecm, const LedMaterial & _material);
+
+  /// \brief Request a color and intensity for the LED light through
+  /// components::LightCmd, so that the lamp also lights up its surroundings.
+  void SetLight(
+    gz::sim::EntityComponentManager & _ecm, const gz::math::Color & _color,
+    double _intensity);
 
   /// \brief Model interface.
   gz::sim::Model model{gz::sim::kNullEntity};
@@ -101,8 +117,17 @@ public:
   /// \brief Substring identifying the visual of the LED.
   std::string ledVisualName{"led"};
 
+  /// \brief Substring identifying the light of the LED, if there is one.
+  std::string ledLightName{"led_light"};
+
+  /// \brief Intensity the light is driven at while the LED is lit.
+  double litIntensity{1.0};
+
   /// \brief Visual entity of the LED, once resolved.
   gz::sim::Entity ledVisualEntity{gz::sim::kNullEntity};
+
+  /// \brief Light entity of the LED, if the model has one.
+  gz::sim::Entity ledLightEntity{gz::sim::kNullEntity};
 
   /// \brief Material the LED visual was loaded with, restored when the LED is
   /// turned off.
@@ -149,6 +174,15 @@ void ToioLedSystem::Configure(
 
   if (_sdf->HasElement("led_visual")) {
     this->dataPtr->ledVisualName = _sdf->Get<std::string>("led_visual");
+  }
+
+  if (_sdf->HasElement("led_light")) {
+    this->dataPtr->ledLightName = _sdf->Get<std::string>("led_light");
+  }
+
+  if (_sdf->HasElement("led_light_intensity")) {
+    this->dataPtr->litIntensity =
+      std::max(0.0, _sdf->Get<double>("led_light_intensity"));
   }
 
   if (_sdf->HasElement("led_duration_ms")) {
@@ -201,7 +235,7 @@ void ToioLedSystem::PreUpdate(
   }
 
   if (this->dataPtr->ledVisualEntity == gz::sim::kNullEntity) {
-    this->dataPtr->ResolveLedVisual(_ecm);
+    this->dataPtr->ResolveLedEntities(_ecm);
     if (this->dataPtr->ledVisualEntity == gz::sim::kNullEntity) {
       return;
     }
@@ -228,6 +262,7 @@ void ToioLedSystem::PreUpdate(
 
     if (off) {
       this->dataPtr->SetVisualMaterial(_ecm, this->dataPtr->offMaterial);
+      this->dataPtr->SetLight(_ecm, gz::math::Color::Black, 0.0);
     } else {
       LedMaterial material;
       material.ambient = color;
@@ -235,6 +270,7 @@ void ToioLedSystem::PreUpdate(
       material.specular = color;
       material.emissive = color;
       this->dataPtr->SetVisualMaterial(_ecm, material);
+      this->dataPtr->SetLight(_ecm, color, this->dataPtr->litIntensity);
     }
 
     this->dataPtr->lit = !off;
@@ -247,6 +283,7 @@ void ToioLedSystem::PreUpdate(
     (simTime - this->dataPtr->litSince) >= this->dataPtr->ledDuration)
   {
     this->dataPtr->SetVisualMaterial(_ecm, this->dataPtr->offMaterial);
+    this->dataPtr->SetLight(_ecm, gz::math::Color::Black, 0.0);
     this->dataPtr->lit = false;
   }
 }
@@ -281,40 +318,64 @@ bool ToioLedSystemPrivate::BelongsToModel(
 }
 
 //////////////////////////////////////////////////
-void ToioLedSystemPrivate::ResolveLedVisual(
-  const gz::sim::EntityComponentManager & _ecm)
+gz::sim::Entity ToioLedSystemPrivate::FindNamed(
+  const gz::sim::EntityComponentManager & _ecm, const std::string & _name,
+  bool _light) const
 {
   gz::sim::Entity found = gz::sim::kNullEntity;
   std::size_t matches = 0;
 
-  _ecm.Each<gz::sim::components::Visual, gz::sim::components::Name>(
-    [&](const gz::sim::Entity & _entity,
-    const gz::sim::components::Visual *,
-    const gz::sim::components::Name * _name) -> bool
+  const auto consider =
+    [&](const gz::sim::Entity & _entity, const std::string & _entityName)
     {
-      if (_name->Data().find(this->ledVisualName) == std::string::npos) {
-        return true;
+      if (_entityName.find(_name) == std::string::npos) {
+        return;
       }
       if (!this->BelongsToModel(_ecm, _entity)) {
-        return true;
+        return;
       }
       ++matches;
       if (found == gz::sim::kNullEntity) {
         found = _entity;
       }
-      return true;
-    });
+    };
 
-  if (found == gz::sim::kNullEntity) {
-    return;
+  if (_light) {
+    _ecm.Each<gz::sim::components::Light, gz::sim::components::Name>(
+      [&](const gz::sim::Entity & _entity,
+      const gz::sim::components::Light *,
+      const gz::sim::components::Name * _n) -> bool
+      {
+        consider(_entity, _n->Data());
+        return true;
+      });
+  } else {
+    _ecm.Each<gz::sim::components::Visual, gz::sim::components::Name>(
+      [&](const gz::sim::Entity & _entity,
+      const gz::sim::components::Visual *,
+      const gz::sim::components::Name * _n) -> bool
+      {
+        consider(_entity, _n->Data());
+        return true;
+      });
   }
 
   if (matches > 1) {
-    gzwarn << "[ToioLedSystem] Found " << matches << " visuals matching ["
-           << this->ledVisualName << "], using the first one." << std::endl;
+    gzwarn << "[ToioLedSystem] Found " << matches << " entities matching ["
+           << _name << "], using the first one." << std::endl;
   }
+  return found;
+}
 
-  this->ledVisualEntity = found;
+//////////////////////////////////////////////////
+void ToioLedSystemPrivate::ResolveLedEntities(
+  const gz::sim::EntityComponentManager & _ecm)
+{
+  const gz::sim::Entity visual = this->FindNamed(_ecm, this->ledVisualName, false);
+  if (visual == gz::sim::kNullEntity) {
+    return;
+  }
+  this->ledVisualEntity = visual;
 
   // Remember the material of the visual so that it can be restored when the
   // LED is turned off.
@@ -328,6 +389,15 @@ void ToioLedSystemPrivate::ResolveLedVisual(
   } else {
     gzwarn << "[ToioLedSystem] The LED visual has no material, the LED will "
            << "turn black when it is switched off." << std::endl;
+  }
+
+  // The light is optional, and it is created together with the visual, so it
+  // is only looked for once.
+  this->ledLightEntity = this->FindNamed(_ecm, this->ledLightName, true);
+  if (this->ledLightEntity == gz::sim::kNullEntity) {
+    gzmsg << "[ToioLedSystem] No light matching [" << this->ledLightName
+          << "], the LED will light up itself but not its surroundings."
+          << std::endl;
   }
 }
 
@@ -383,6 +453,77 @@ void ToioLedSystemPrivate::SetVisualMaterial(
     gz::sim::ComponentState::NoChange;
   _ecm.SetChanged(
     this->ledVisualEntity, gz::sim::components::VisualCmd::typeId, state);
+}
+
+//////////////////////////////////////////////////
+void ToioLedSystemPrivate::SetLight(
+  gz::sim::EntityComponentManager & _ecm, const gz::math::Color & _color,
+  double _intensity)
+{
+  if (this->ledLightEntity == gz::sim::kNullEntity) {
+    return;
+  }
+
+  const auto * light =
+    _ecm.Component<gz::sim::components::Light>(this->ledLightEntity);
+  if (light == nullptr) {
+    return;
+  }
+
+  // Carry the shape of the light over from the model and only drive how it
+  // looks, so that the range and falloff stay where the model put them.
+  const gz::msgs::Light shape = gz::sim::convert<gz::msgs::Light>(light->Data());
+  gz::msgs::Light lightMsg;
+  lightMsg.set_id(this->ledLightEntity);
+  lightMsg.set_type(shape.type());
+  lightMsg.set_range(shape.range());
+  lightMsg.set_attenuation_constant(shape.attenuation_constant());
+  lightMsg.set_attenuation_linear(shape.attenuation_linear());
+  lightMsg.set_attenuation_quadratic(shape.attenuation_quadratic());
+  lightMsg.set_cast_shadows(shape.cast_shadows());
+  // A spot loses its cone if these are left at their defaults.
+  lightMsg.mutable_direction()->CopyFrom(shape.direction());
+  lightMsg.set_spot_inner_angle(shape.spot_inner_angle());
+  lightMsg.set_spot_outer_angle(shape.spot_outer_angle());
+  lightMsg.set_spot_falloff(shape.spot_falloff());
+  lightMsg.set_intensity(_intensity);
+
+  const auto setColor =
+    [](gz::msgs::Color * _dst, const gz::math::Color & _src)
+    {
+      _dst->set_r(_src.R());
+      _dst->set_g(_src.G());
+      _dst->set_b(_src.B());
+      _dst->set_a(_src.A());
+    };
+  setColor(lightMsg.mutable_diffuse(), _color);
+  setColor(lightMsg.mutable_specular(), _color);
+
+  std::function<bool(const gz::msgs::Light &, const gz::msgs::Light &)> lightEq =
+    [](const gz::msgs::Light & _a, const gz::msgs::Light & _b)
+    {
+      const auto & da = _a.diffuse();
+      const auto & db = _b.diffuse();
+      return _a.id() == _b.id() &&
+             gz::math::equal(_a.intensity(), _b.intensity(), 1e-6f) &&
+             gz::math::equal(da.r(), db.r(), 1e-6f) &&
+             gz::math::equal(da.g(), db.g(), 1e-6f) &&
+             gz::math::equal(da.b(), db.b(), 1e-6f);
+    };
+
+  auto * lightCmd =
+    _ecm.Component<gz::sim::components::LightCmd>(this->ledLightEntity);
+  if (lightCmd == nullptr) {
+    _ecm.CreateComponent(
+      this->ledLightEntity, gz::sim::components::LightCmd(lightMsg));
+    return;
+  }
+
+  const auto state = lightCmd->SetData(lightMsg, lightEq) ?
+    gz::sim::ComponentState::OneTimeChange :
+    gz::sim::ComponentState::NoChange;
+  _ecm.SetChanged(
+    this->ledLightEntity, gz::sim::components::LightCmd::typeId, state);
 }
 }  // namespace toio_gazebo
 

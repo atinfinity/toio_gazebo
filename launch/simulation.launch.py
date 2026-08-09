@@ -62,6 +62,7 @@ def generate_launch_description():
     robot_sdf = LaunchConfiguration('robot_sdf')
     frame_prefix = LaunchConfiguration('frame_prefix')
     led_duration_ms = LaunchConfiguration('led_duration_ms')
+    led_light_intensity = LaunchConfiguration('led_light_intensity')
     sound_volume = LaunchConfiguration('sound_volume')
 
     # Declare the launch arguments
@@ -125,6 +126,15 @@ def generate_launch_description():
         description='Lighting time of the indicator LED in milliseconds. '
                     '0 keeps it lit until the next command, 10-2550 turns it '
                     'off once the time has elapsed',
+    )
+
+    declare_led_light_intensity_cmd = DeclareLaunchArgument(
+        'led_light_intensity',
+        default_value='1.0',
+        description='Intensity of the light of the indicator lamp while '
+                    'it is lit. 0 leaves the lamp lighting up only '
+                    'itself, without casting color on the mat around the '
+                    'cube',
     )
 
     declare_sound_volume_cmd = DeclareLaunchArgument(
@@ -198,6 +208,7 @@ def generate_launch_description():
                           'frame_prefix': frame_prefix,
                           'robot_sdf': robot_sdf,
                           'led_duration_ms': led_duration_ms,
+                          'led_light_intensity': led_light_intensity,
                           'sound_volume': sound_volume,
                           'x_pose': pose['x'],
                           'y_pose': pose['y'],
@@ -221,6 +232,7 @@ def generate_launch_description():
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_robot_sdf_cmd)
     ld.add_action(declare_led_duration_ms_cmd)
+    ld.add_action(declare_led_light_intensity_cmd)
     ld.add_action(declare_sound_volume_cmd)
 
     ld.add_action(set_env_vars_resources)

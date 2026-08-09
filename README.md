@@ -64,6 +64,7 @@ against the simulation and against the hardware.
 | argument | default | description |
 | --- | --- | --- |
 | `led_duration_ms` | `0` | Lighting time of `/toio/led`. `0` keeps the indicator lit until the next command, `10`-`2550` turns it off once the time has elapsed |
+| `led_light_intensity` | `1.0` | Intensity of the light of the lamp while it is lit. `0` leaves the lamp lighting up only itself, without casting color on the mat around the cube |
 | `sound_volume` | `255` | Volume of `/toio/sound`. Per the toio specification this is mute or full volume only: `0` is mute and every other value is the maximum volume |
 
 On the real cube these are parameters of the toio_ros2 node. Here they are
@@ -90,8 +91,13 @@ The lamp is the ball on the underside of the cube, as
 [the specification](https://toio.github.io/toio-spec/en/docs/ble_light/)
 describes it, and is driven by the `ToioLedSystem` Gazebo plugin of this
 package. Only the cap below the flat underside is visible, so it is best seen
-from a low angle. The way the plugin drives the material through
-`components::VisualCmd` follows
+from a low angle.
+
+The plugin drives a light along with the visual, so the lamp washes the mat
+around the cube in its color, faintly and over a good part of it, rather than
+only lighting up itself. Set `led_light_intensity:=0` to leave the mat alone.
+The way the plugin drives the material and the light through
+`components::VisualCmd` and `components::LightCmd` follows
 [gz_sim_led_plugin](https://github.com/jasmeet0915/gz_sim_led_plugin)
 (Apache License 2.0).
 
