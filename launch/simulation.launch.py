@@ -61,6 +61,8 @@ def generate_launch_description():
     robot_name = LaunchConfiguration('robot_name')
     robot_sdf = LaunchConfiguration('robot_sdf')
     frame_prefix = LaunchConfiguration('frame_prefix')
+    led_duration_ms = LaunchConfiguration('led_duration_ms')
+    sound_volume = LaunchConfiguration('sound_volume')
 
     # Declare the launch arguments
     declare_namespace_cmd = DeclareLaunchArgument(
@@ -115,6 +117,22 @@ def generate_launch_description():
         'frame_prefix',
         default_value='',
         description='Prefix of the TF frames (e.g. "toio1/")',
+    )
+
+    declare_led_duration_ms_cmd = DeclareLaunchArgument(
+        'led_duration_ms',
+        default_value='0',
+        description='Lighting time of the indicator LED in milliseconds. '
+                    '0 keeps it lit until the next command, 10-2550 turns it '
+                    'off once the time has elapsed',
+    )
+
+    declare_sound_volume_cmd = DeclareLaunchArgument(
+        'sound_volume',
+        default_value='255',
+        description='Volume of the sound effects. Per the toio specification '
+                    'this is mute or full volume only: 0 is mute and every '
+                    'other value is the maximum volume',
     )
 
     # The clock is shared by all robots, so it is bridged here instead of
@@ -179,6 +197,8 @@ def generate_launch_description():
                           'robot_name': robot_name,
                           'frame_prefix': frame_prefix,
                           'robot_sdf': robot_sdf,
+                          'led_duration_ms': led_duration_ms,
+                          'sound_volume': sound_volume,
                           'x_pose': pose['x'],
                           'y_pose': pose['y'],
                           'z_pose': pose['z'],
@@ -200,6 +220,8 @@ def generate_launch_description():
     ld.add_action(declare_robot_name_cmd)
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_robot_sdf_cmd)
+    ld.add_action(declare_led_duration_ms_cmd)
+    ld.add_action(declare_sound_volume_cmd)
 
     ld.add_action(set_env_vars_resources)
     ld.add_action(world_sdf_xacro)

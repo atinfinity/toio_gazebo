@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>toio_description</depend>
+  <depend>gz_sim_vendor</depend>
   <depend>ros_gz_bridge</depend>
   <depend>ros_gz_image</depend>
   <depend>ros_gz_interfaces</depend>
@@ -17,8 +18,15 @@
   <depend>robot_state_publisher</depend>
   <depend>xacro</depend>
 
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <!-- aplay, used by toio_sound_node.py to play the sound effects -->
+  <exec_depend>alsa-utils</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+  <test_depend>python3-pytest</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -28,6 +28,7 @@ from launch.event_handlers import OnShutdown
 from launch.substitutions import Command, LaunchConfiguration
 
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def launch_setup(context, *args, **kwargs):
@@ -35,6 +36,8 @@ def launch_setup(context, *args, **kwargs):
     robot_name = LaunchConfiguration('robot_name').perform(context)
     frame_prefix = LaunchConfiguration('frame_prefix').perform(context)
     robot_sdf = LaunchConfiguration('robot_sdf').perform(context)
+    led_duration_ms = LaunchConfiguration('led_duration_ms').perform(context)
+    sound_volume = int(LaunchConfiguration('sound_volume').perform(context))
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_simulator = LaunchConfiguration('use_simulator')
     use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
@@ -68,6 +71,12 @@ def launch_setup(context, *args, **kwargs):
   ros_type_name: "tf2_msgs/msg/TFMessage"
   gz_type_name: "gz.msgs.Pose_V"
   direction: GZ_TO_ROS
+
+- ros_topic_name: "{ns}/toio/led"
+  gz_topic_name: "/model/{robot_name}/led"
+  ros_type_name: "std_msgs/msg/ColorRGBA"
+  gz_type_name: "gz.msgs.Color"
+  direction: ROS_TO_GZ
 """
     bridge_config_file = tempfile.mktemp(
         prefix=f'toio_bridge_{robot_name}_', suffix='.yaml')
@@ -89,8 +98,29 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             {'use_sim_time': use_sim_time,
              'frame_prefix': frame_prefix,
-             'robot_description': Command(
-                 ['xacro', ' ', robot_sdf, ' ', 'robot_name:=', robot_name])}
+             # Declared as a string because the description is otherwise
+             # parsed as YAML, which any colon in the URDF would break.
+             'robot_description': ParameterValue(
+                 Command(
+                     ['xacro', ' ', robot_sdf, ' ', 'robot_name:=', robot_name,
+                      ' ', 'led_duration_ms:=', led_duration_ms]),
+                 value_type=str)}
+        ],
+    )
+
+    # Gazebo has no audio output, so the sound effects are played on the host
+    # instead of by a Gazebo plugin.
+    sound_node = Node(
+        package='toio_gazebo',
+        executable='toio_sound_node.py',
+        name='toio_sound',
+        namespace=namespace,
+        output='screen',
+        parameters=[
+            {
+                'sound_volume': sound_volume,
+                'use_sim_time': use_sim_time,
+            }
         ],
     )
 
@@ -139,6 +169,7 @@ def launch_setup(context, *args, **kwargs):
         remove_temp_bridge_file,
         start_robot_state_publisher_cmd,
         bridge,
+        sound_node,
         spawn_model,
         center_static_transform_publisher_cmd,
     ]
@@ -184,12 +215,28 @@ def generate_launch_description():
         default_value=os.path.join(desc_dir, 'robot', 'toio.urdf.xacro'),
         description='Full path to robot sdf file to spawn the robot in gazebo')
 
+    declare_led_duration_ms_cmd = DeclareLaunchArgument(
+        'led_duration_ms',
+        default_value='0',
+        description='Lighting time of the indicator LED in milliseconds. '
+                    '0 keeps it lit until the next command, 10-2550 turns it '
+                    'off once the time has elapsed')
+
+    declare_sound_volume_cmd = DeclareLaunchArgument(
+        'sound_volume',
+        default_value='255',
+        description='Volume of the sound effects. Per the toio specification '
+                    'this is mute or full volume only: 0 is mute and every '
+                    'other value is the maximum volume')
+
     # Create the launch description and populate
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
     ld.add_action(declare_robot_name_cmd)
     ld.add_action(declare_frame_prefix_cmd)
     ld.add_action(declare_robot_sdf_cmd)
+    ld.add_action(declare_led_duration_ms_cmd)
+    ld.add_action(declare_sound_volume_cmd)
     ld.add_action(declare_use_simulator_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_robot_state_pub_cmd)
