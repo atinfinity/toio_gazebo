@@ -497,7 +497,9 @@ void ToioLedSystemPrivate::SetLight(
       _dst->set_a(_src.A());
     };
   setColor(lightMsg.mutable_diffuse(), _color);
-  setColor(lightMsg.mutable_specular(), _color);
+  // No specular. The lamp is meant to wash the mat, and a specular term picks
+  // out the edges of the cube itself however dim the light is turned down.
+  setColor(lightMsg.mutable_specular(), gz::math::Color::Black);
 
   std::function<bool(const gz::msgs::Light &, const gz::msgs::Light &)> lightEq =
     [](const gz::msgs::Light & _a, const gz::msgs::Light & _b)
