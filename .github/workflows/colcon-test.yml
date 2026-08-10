@@ -1,0 +1,43 @@
+name: colcon-test
+
+on: push
+
+jobs:
+  colcon-test:
+    runs-on: ubuntu-latest
+    container: ros:jazzy-ros-base
+    steps:
+      - name: Checkout toio_gazebo
+        uses: actions/checkout@v4
+        with:
+          path: src/toio_gazebo
+
+      # toio_description is a source-only dependency (not released to rosdep)
+      - name: Checkout toio_description
+        uses: actions/checkout@v4
+        with:
+          repository: atinfinity/toio_description
+          path: src/toio_description
+
+      # ros_gz pulls the ros-jazzy-gz-*-vendor packages, so this step
+      # downloads a few hundred MB
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt-get update
+          rosdep update
+          rosdep install --from-paths src --ignore-src -y
+
+      - name: Build
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --packages-up-to toio_gazebo
+
+      - name: Test
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test --packages-select toio_gazebo --event-handlers console_cohesion+
+          colcon test-result --verbose
