@@ -37,7 +37,9 @@ install(
 )
 
 install(
-  PROGRAMS scripts/toio_sound_node.py
+  PROGRAMS
+    scripts/toio_led_node.py
+    scripts/toio_sound_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
