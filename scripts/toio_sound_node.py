@@ -14,12 +14,17 @@
 # limitations under the License.
 
 """
-Play the sound effects of the toio cube on the host while simulating.
+Play the sounds of the toio cube on the host while simulating.
 
-Gazebo has no audio output, so this node mirrors the ``toio/sound`` interface of
-the real cube by playing a tone sequence through ``aplay``. The sound effects of
-the real cube cannot be shipped here, so each effect id is approximated by a
-synthesized motif that matches its character.
+Gazebo has no audio output, so this node mirrors the ``toio/sound`` and
+``toio/melody`` interfaces of the real cube by playing a tone sequence through
+``aplay``. The sound effects of the real cube cannot be shipped here, so each
+effect id is approximated by a synthesized motif that matches its character;
+melodies are MIDI notes, which are rendered exactly.
+
+The real cube sequences a melody itself, so it keeps playing when BLE drops.
+Here the whole clip is rendered up front and handed to the player, which is the
+closest equivalent the host side has.
 """
 
 import io
@@ -34,6 +39,8 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import UInt8
+from toio_msgs.msg import Melody
+from toio_msgs.msg import MidiNote
 
 
 SAMPLE_RATE = 22050
@@ -73,6 +80,47 @@ SOUND_EFFECT_NOTES = {
     9: ((2093, 0.05), (0, 0.03), (2093, 0.05), (0, 0.03), (2637, 0.12)),
     10: ((1568, 0.05), (1175, 0.05), (1568, 0.05), (2093, 0.14)),
 }
+
+
+def midi_note_to_frequency(note):
+    """
+    Convert a MIDI note number to its frequency in Hz.
+
+    NOTE_REST is silence, which build_wav() renders as a rest.
+    """
+    if note == MidiNote.NOTE_REST:
+        return 0.0
+    return 440.0 * (2.0 ** ((note - 69) / 12.0))
+
+
+def melody_to_notes(msg):
+    """
+    Turn a Melody message into the (frequency, seconds) pairs build_wav takes.
+
+    Returns None when the cube would reject the message, so the caller can
+    warn instead of playing something the real cube never would.
+    """
+    if not msg.notes:
+        return None
+    if len(msg.notes) > Melody.NOTES_MAX:
+        return None
+    for note in msg.notes:
+        if note.note > MidiNote.NOTE_MAX:
+            return None
+
+    once = []
+    for note in msg.notes:
+        # Volume is mute-or-full on the cube, so a muted note is a rest
+        frequency = 0.0 if note.volume == 0 else midi_note_to_frequency(
+            note.note)
+        seconds = min(note.duration_ms, MidiNote.DURATION_MAX_MS) / 1000.0
+        once.append((frequency, seconds))
+
+    # repeat 0 means "until the next sound command" on the cube. Nothing here
+    # can interrupt a clip that is already handed to the player, so it is
+    # rendered once rather than looping forever.
+    repeat = max(1, msg.repeat)
+    return once * repeat
 
 
 def is_valid_sound_id(sound_id):
@@ -141,6 +189,8 @@ class ToioSoundNode(Node):
         # are separated by the namespace of the node, as on the real cube.
         self._subscription = self.create_subscription(
             UInt8, 'toio/sound', self._on_sound, 10)
+        self._melody_subscription = self.create_subscription(
+            Melody, 'toio/melody', self._on_melody, 10)
 
     def _on_sound(self, msg):
         sound_id = msg.data
@@ -165,6 +215,31 @@ class ToioSoundNode(Node):
 
         self.get_logger().info(f'playing sound effect {sound_id} ({name})')
         self._play(self._wavs[sound_id])
+
+    def _on_melody(self, msg):
+        notes = melody_to_notes(msg)
+        if notes is None:
+            self.get_logger().warning(
+                f'melody with {len(msg.notes)} notes is not one the cube '
+                f'would accept, ignoring it')
+            return
+
+        # Melodies share the cube's one sound channel with the effects, so
+        # they share the throttle too
+        now = time.monotonic()
+        if now - self._last_sound_time < self._min_interval:
+            self.get_logger().debug('melody command throttled')
+            return
+        self._last_sound_time = now
+
+        if self._muted:
+            self.get_logger().debug('melody muted')
+            return
+
+        seconds = sum(duration for _, duration in notes)
+        self.get_logger().info(
+            f'playing melody of {len(notes)} notes ({seconds:.2f}s)')
+        self._play(build_wav(notes))
 
     def _play(self, wav):
         # Playback is not waited on, so the exit status of the previous clips is

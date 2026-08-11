@@ -110,6 +110,18 @@ def launch_setup(context, *args, **kwargs):
         ],
     )
 
+    # The indicator plugin takes a plain color with the lighting time fixed in
+    # SDF, so the per-command time and the blink patterns are sequenced here
+    # and published as plain colors (see toio_led_node.py).
+    led_node = Node(
+        package='toio_gazebo',
+        executable='toio_led_node.py',
+        name='toio_led',
+        namespace=namespace,
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+    )
+
     # Gazebo has no audio output, so the sound effects are played on the host
     # instead of by a Gazebo plugin.
     sound_node = Node(
@@ -171,6 +183,7 @@ def launch_setup(context, *args, **kwargs):
         remove_temp_bridge_file,
         start_robot_state_publisher_cmd,
         bridge,
+        led_node,
         sound_node,
         spawn_model,
         center_static_transform_publisher_cmd,

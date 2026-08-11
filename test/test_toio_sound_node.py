@@ -79,3 +79,70 @@ def test_notes_start_and_end_quietly(node_module):
         frames = wav.readframes(wav.getnframes())
     assert frames[0:2] == b'\x00\x00'
     assert frames[-2:] == b'\x00\x00'
+
+
+def make_melody(notes, repeat=1):
+    from toio_msgs.msg import Melody, MidiNote
+    msg = Melody()
+    msg.notes = [
+        MidiNote(duration_ms=d, note=n, volume=v) for d, n, v in notes
+    ]
+    msg.repeat = repeat
+    return msg
+
+
+def test_midi_note_maps_to_the_standard_frequency(node_module):
+    # A4 = note 69 = 440 Hz is the anchor the formula is defined against
+    assert node_module.midi_note_to_frequency(69) == pytest.approx(440.0)
+    assert node_module.midi_note_to_frequency(81) == pytest.approx(880.0)
+    assert node_module.midi_note_to_frequency(57) == pytest.approx(220.0)
+
+
+def test_rest_note_is_silence(node_module):
+    from toio_msgs.msg import MidiNote
+    assert node_module.midi_note_to_frequency(MidiNote.NOTE_REST) == 0.0
+
+
+def test_melody_converts_notes_and_durations(node_module):
+    notes = node_module.melody_to_notes(
+        make_melody([(400, 69, 255), (200, 81, 255)]))
+
+    assert notes == [
+        (pytest.approx(440.0), pytest.approx(0.4)),
+        (pytest.approx(880.0), pytest.approx(0.2)),
+    ]
+
+
+def test_muted_note_becomes_a_rest(node_module):
+    # Volume is mute-or-full on the cube, so 0 is silence rather than quiet
+    notes = node_module.melody_to_notes(make_melody([(100, 69, 0)]))
+    assert notes == [(0.0, pytest.approx(0.1))]
+
+
+def test_melody_repeat_expands_the_sequence(node_module):
+    notes = node_module.melody_to_notes(
+        make_melody([(100, 69, 255)], repeat=3))
+    assert len(notes) == 3
+
+
+def test_melody_repeat_zero_plays_once(node_module):
+    # "until the next sound command" cannot be honoured once a clip has been
+    # handed to the player, so it plays once instead of looping forever
+    notes = node_module.melody_to_notes(
+        make_melody([(100, 69, 255)], repeat=0))
+    assert len(notes) == 1
+
+
+def test_melody_duration_is_clipped_to_the_cube_limit(node_module):
+    from toio_msgs.msg import MidiNote
+    notes = node_module.melody_to_notes(make_melody([(60000, 69, 255)]))
+    assert notes[0][1] == pytest.approx(MidiNote.DURATION_MAX_MS / 1000.0)
+
+
+def test_melody_the_cube_would_reject_is_rejected(node_module):
+    from toio_msgs.msg import Melody
+
+    assert node_module.melody_to_notes(make_melody([])) is None
+    assert node_module.melody_to_notes(
+        make_melody([(100, 69, 255)] * (Melody.NOTES_MAX + 1))) is None
+    assert node_module.melody_to_notes(make_melody([(100, 200, 255)])) is None

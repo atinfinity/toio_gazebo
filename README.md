@@ -51,6 +51,9 @@ against the simulation and against the hardware.
 | `/cmd_vel` | [geometry_msgs/msg/Twist](https://docs.ros2.org/latest/api/geometry_msgs/msg/Twist.html) | Desired velocity of the cube |
 | `/toio/led` | [std_msgs/msg/ColorRGBA](https://docs.ros2.org/latest/api/std_msgs/msg/ColorRGBA.html) | Color of the indicator LED. `r`, `g` and `b` are taken as 0.0-1.0 and are clipped into that range, `a` is unused. An all zero color turns the LED off |
 | `/toio/sound` | [std_msgs/msg/UInt8](https://docs.ros2.org/latest/api/std_msgs/msg/UInt8.html) | Sound effect id, 0-10. Ids outside that range are logged as a warning and ignored |
+| `/toio/led_timed` | [toio_msgs/msg/Led](https://github.com/atinfinity/toio_msgs) | Indicator color with the lighting time in the message, for when `led_duration_ms` is not the same for every command |
+| `/toio/led_pattern` | [toio_msgs/msg/LedPattern](https://github.com/atinfinity/toio_msgs) | Blink sequence, up to 29 steps. `repeat` 0 repeats until the next indicator command |
+| `/toio/melody` | [toio_msgs/msg/Melody](https://github.com/atinfinity/toio_msgs) | MIDI melody, up to 59 notes. Shares the sound throttle with `/toio/sound` |
 
 ### Published topics
 
@@ -60,6 +63,14 @@ against the simulation and against the hardware.
 | `/tf` | [tf2_msgs/msg/TFMessage](https://docs.ros2.org/latest/api/tf2_msgs/msg/TFMessage.html) | Pose of the cube, as `map -> center` |
 
 ### Launch arguments
+
+> The cube plays a pattern or a melody in its own firmware, so on hardware the
+> timing does not depend on the host and a BLE dropout does not interrupt it.
+> Nothing in Gazebo can sequence one on its own, so `toio_led_node` keeps the
+> time on the ROS side instead: a busy or paused simulation stretches a
+> pattern. For the same reason `repeat` 0 loops the LED pattern (a timer can be
+> cancelled by the next command) but plays a melody once (a clip already handed
+> to the player cannot be stopped).
 
 | argument | default | description |
 | --- | --- | --- |
@@ -77,6 +88,14 @@ played by a separate node.
 # Light the indicator in red, then turn it off
 ros2 topic pub --once /toio/led std_msgs/msg/ColorRGBA '{r: 1.0, g: 0.0, b: 0.0, a: 1.0}'
 ros2 topic pub --once /toio/led std_msgs/msg/ColorRGBA '{r: 0.0, g: 0.0, b: 0.0, a: 1.0}'
+```
+
+Light red for 1.5 seconds, blink blue three times, and play three notes:
+
+```bash
+ros2 topic pub --once /toio/led_timed toio_msgs/msg/Led '{color: {r: 1.0, g: 0.0, b: 0.0, a: 1.0}, duration_ms: 1500}'
+ros2 topic pub --once /toio/led_pattern toio_msgs/msg/LedPattern '{steps: [{color: {r: 0.0, g: 0.0, b: 1.0, a: 1.0}, duration_ms: 400}, {color: {r: 0.0, g: 0.0, b: 0.0, a: 1.0}, duration_ms: 400}], repeat: 3}'
+ros2 topic pub --once /toio/melody toio_msgs/msg/Melody '{notes: [{duration_ms: 400, note: 60, volume: 255}, {duration_ms: 400, note: 64, volume: 255}, {duration_ms: 400, note: 67, volume: 255}], repeat: 1}'
 
 # Play a sound effect
 ros2 topic pub --once /toio/sound std_msgs/msg/UInt8 '{data: 6}'
