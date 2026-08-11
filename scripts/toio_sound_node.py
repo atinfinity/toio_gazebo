@@ -29,9 +29,11 @@ closest equivalent the host side has.
 
 import io
 import math
+import os
 import shutil
 import struct
 import subprocess
+import tempfile
 import time
 import wave
 
@@ -45,6 +47,36 @@ from toio_msgs.msg import MidiNote
 
 SAMPLE_RATE = 22050
 AMPLITUDE = 0.35
+
+# Players to try, in order, with how each one takes the clip. aplay is the
+# Linux one and reads the WAV from stdin; afplay ships with macOS and only
+# takes a path, so the clip has to be written out first.
+PLAYERS = (
+    ('aplay', 'stdin'),
+    ('afplay', 'file'),
+    ('ffplay', 'stdin'),
+)
+
+
+def find_player():
+    """Return (path, how) for the first available player, or (None, None)."""
+    for name, how in PLAYERS:
+        path = shutil.which(name)
+        if path is not None:
+            return path, how
+    return None, None
+
+
+def player_command(player, how, path=None):
+    """Build the argument list that plays a clip with this player."""
+    name = os.path.basename(player)
+    if name == 'aplay':
+        return [player, '-q', '-']
+    if name == 'ffplay':
+        return [player, '-loglevel', 'quiet', '-autoexit', '-nodisp', '-i', '-']
+    # afplay takes a path rather than a stream
+    return [player, path]
+
 
 # Sound effect ids of the toio specification.
 # https://toio.github.io/toio-spec/en/docs/ble_sound
@@ -177,13 +209,15 @@ class ToioSoundNode(Node):
         }
         self._last_sound_time = 0.0
         self._players = []
-        self._player = shutil.which('aplay')
+        self._player, self._player_input = find_player()
+        self._temp_files = []
         self._warned_no_player = False
 
         if self._player is None:
+            names = ', '.join(name for name, _ in PLAYERS)
             self.get_logger().warning(
-                'aplay was not found, sound effects will only be logged. '
-                'Install alsa-utils to hear them.')
+                f'no audio player was found ({names}), sounds will only be '
+                f'logged')
 
         # A relative topic name so that the cubes of a multi-robot simulation
         # are separated by the namespace of the node, as on the real cube.
@@ -246,29 +280,51 @@ class ToioSoundNode(Node):
         # what tells us whether it works at all, for example when there is no
         # sound card.
         running = []
-        for player in self._players:
-            if player.poll() is None:
-                running.append(player)
-            elif player.returncode != 0:
-                self._warn_once(f'aplay exited with {player.returncode}')
+        for process, path in self._players:
+            if process.poll() is None:
+                running.append((process, path))
+                continue
+            if process.returncode != 0:
+                name = os.path.basename(self._player)
+                self._warn_once(f'{name} exited with {process.returncode}')
+            self._remove_temp(path)
         self._players = running
 
         if self._player is None:
             return
 
+        path = None
         try:
+            if self._player_input == 'file':
+                # afplay cannot read a stream, so the clip is written out and
+                # removed once the process that plays it has exited
+                handle, path = tempfile.mkstemp(prefix='toio_', suffix='.wav')
+                with os.fdopen(handle, 'wb') as temp:
+                    temp.write(wav)
+
             process = subprocess.Popen(
-                [self._player, '-q', '-'],
-                stdin=subprocess.PIPE,
+                player_command(self._player, self._player_input, path),
+                stdin=subprocess.PIPE if self._player_input == 'stdin' else None,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL)
-            # The clips are a few kilobytes, so this fits in the pipe buffer and
-            # returns without waiting for the playback to finish.
-            process.stdin.write(wav)
-            process.stdin.close()
-            self._players.append(process)
+            if self._player_input == 'stdin':
+                # The clips are a few kilobytes, so this fits in the pipe
+                # buffer and returns without waiting for the playback to finish.
+                process.stdin.write(wav)
+                process.stdin.close()
+            self._players.append((process, path))
         except OSError as error:
+            self._remove_temp(path)
             self._warn_once(str(error))
+
+    @staticmethod
+    def _remove_temp(path):
+        if path is None:
+            return
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
     def _warn_once(self, reason):
         if self._warned_no_player:

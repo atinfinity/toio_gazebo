@@ -146,3 +146,32 @@ def test_melody_the_cube_would_reject_is_rejected(node_module):
     assert node_module.melody_to_notes(
         make_melody([(100, 69, 255)] * (Melody.NOTES_MAX + 1))) is None
     assert node_module.melody_to_notes(make_melody([(100, 200, 255)])) is None
+
+
+def test_player_command_matches_how_each_player_takes_the_clip(node_module):
+    # aplay and ffplay read the WAV from stdin; afplay only takes a path
+    assert node_module.player_command('/usr/bin/aplay', 'stdin')[-1] == '-'
+    assert node_module.player_command('/usr/bin/ffplay', 'stdin')[-1] == '-'
+    assert node_module.player_command(
+        '/usr/bin/afplay', 'file', '/tmp/x.wav') == ['/usr/bin/afplay',
+                                                     '/tmp/x.wav']
+
+
+def test_players_are_tried_in_order(node_module, monkeypatch):
+    seen = []
+
+    def fake_which(name):
+        seen.append(name)
+        return '/usr/bin/afplay' if name == 'afplay' else None
+
+    monkeypatch.setattr(node_module.shutil, 'which', fake_which)
+    player, how = node_module.find_player()
+
+    assert (player, how) == ('/usr/bin/afplay', 'file')
+    # aplay is preferred where it exists, so it has to be checked first
+    assert seen[0] == 'aplay'
+
+
+def test_no_player_is_reported_rather_than_guessed(node_module, monkeypatch):
+    monkeypatch.setattr(node_module.shutil, 'which', lambda name: None)
+    assert node_module.find_player() == (None, None)
