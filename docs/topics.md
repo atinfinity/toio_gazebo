@@ -20,7 +20,10 @@ against the simulation and against the hardware.
 | topic | type | description |
 | --- | --- | --- |
 | `/joint_states` | [sensor_msgs/msg/JointState](https://docs.ros2.org/latest/api/sensor_msgs/msg/JointState.html) | State of the wheel joints |
-| `/tf` | [tf2_msgs/msg/TFMessage](https://docs.ros2.org/latest/api/tf2_msgs/msg/TFMessage.html) | Pose of the cube, as `map -> center` |
+| `/tf` | [tf2_msgs/msg/TFMessage](https://docs.ros2.org/latest/api/tf2_msgs/msg/TFMessage.html) | Pose of the cube. With `publish_odom` (default) the tree is `map -> odom -> center`; `map -> odom` is identity and `odom -> center` is the mat-perfect ground-truth pose, so `map -> center` is exact. With `publish_odom:=False` it is `map -> center` directly |
+| `/odom` | [nav_msgs/msg/Odometry](https://docs.ros2.org/latest/api/nav_msgs/msg/Odometry.html) | Wheel odometry at 20Hz (`odom -> center`), only when `publish_odom` is true. Mirrors the `/odom` of [toio_ros2](https://github.com/atinfinity/toio_ros2). Note: the pose in this message is the wheel integration (it drifts), while the `map -> odom -> center` TF is held at the ground-truth pose — so `/odom` and the TF can differ, a simulation simplification |
+| `/toio/imu` | [sensor_msgs/msg/Imu](https://docs.ros2.org/latest/api/sensor_msgs/msg/Imu.html) | Orientation of the cube in the `center` frame every `imu_interval_ms`. Unlike the real cube (orientation only), the Gazebo values for angular velocity and linear acceleration are passed through as-is |
+| `/toio/motion` | [toio_msgs/msg/MotionDetection](https://github.com/atinfinity/toio_msgs) | **Stub.** Gazebo has no motion-detection equivalent, so this is a fixed value for interface parity: `horizontal` true, `posture` `POSTURE_TOP`, and `collision` / `double_tap` / `shake` always false/none. `collision_threshold` / `horizontal_threshold` are accepted but ignored |
 
 ## Launch arguments
 
@@ -37,6 +40,8 @@ against the simulation and against the hardware.
 | `led_duration_ms` | `0` | Lighting time of `/toio/led`. `0` keeps the indicator lit until the next command, `10`-`2550` turns it off once the time has elapsed |
 | `led_light_intensity` | `1.0` | Intensity of the light of the lamp while it is lit. `0` leaves the lamp lighting up only itself, without casting color on the mat around the cube |
 | `sound_volume` | `255` | Volume of `/toio/sound`. Per the toio specification this is mute or full volume only: `0` is mute and every other value is the maximum volume |
+| `imu_interval_ms` | `100` | Notification interval of the posture angle behind `/toio/imu`, in milliseconds. The IMU sensor update rate is `1000/imu_interval_ms` Hz (default 10Hz) |
+| `publish_odom` | `True` | Publish `/odom` and the `map -> odom -> center` TF tree. `False` restores the plain `map -> center` transform |
 
 On the real cube these are parameters of the toio_ros2 node. Here they are
 launch arguments, because the LED is driven by a Gazebo plugin and the sound is

@@ -39,6 +39,9 @@ def launch_setup(context, *args, **kwargs):
     led_duration_ms = LaunchConfiguration('led_duration_ms').perform(context)
     led_light_intensity = LaunchConfiguration('led_light_intensity').perform(context)
     sound_volume = int(LaunchConfiguration('sound_volume').perform(context))
+    imu_interval_ms = LaunchConfiguration('imu_interval_ms').perform(context)
+    publish_odom = LaunchConfiguration('publish_odom').perform(
+        context).lower() in ('true', '1')
     use_sim_time = LaunchConfiguration('use_sim_time')
     use_simulator = LaunchConfiguration('use_simulator')
     use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
@@ -78,6 +81,24 @@ def launch_setup(context, *args, **kwargs):
   ros_type_name: "std_msgs/msg/ColorRGBA"
   gz_type_name: "gz.msgs.Color"
   direction: ROS_TO_GZ
+
+- ros_topic_name: "{ns}/toio/imu"
+  gz_topic_name: "/model/{robot_name}/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+"""
+    # Wheel odometry, mirroring toio_ros2 /odom (odom -> center). The tf tree
+    # (map -> odom -> center) is set up in simulation.launch with map -> center
+    # kept at the mat-perfect ground-truth pose, so the /odom message pose is
+    # the wheel integration while the tf localisation stays ground truth.
+    if publish_odom:
+        bridge_config += f"""
+- ros_topic_name: "{ns}/odom"
+  gz_topic_name: "/model/{robot_name}/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
 """
     bridge_config_file = tempfile.mktemp(
         prefix=f'toio_bridge_{robot_name}_', suffix='.yaml')
@@ -105,7 +126,9 @@ def launch_setup(context, *args, **kwargs):
                  Command(
                      ['xacro', ' ', robot_sdf, ' ', 'robot_name:=', robot_name,
                       ' ', 'led_duration_ms:=', led_duration_ms,
-                      ' ', 'led_light_intensity:=', led_light_intensity]),
+                      ' ', 'led_light_intensity:=', led_light_intensity,
+                      ' ', 'frame_prefix:=', frame_prefix,
+                      ' ', 'imu_interval_ms:=', imu_interval_ms]),
                  value_type=str)}
         ],
     )
@@ -136,6 +159,18 @@ def launch_setup(context, *args, **kwargs):
                 'use_sim_time': use_sim_time,
             }
         ],
+    )
+
+    # Gazebo has no equivalent of the cube's motion-detection notification, so
+    # this node publishes a fixed stub on /toio/motion for interface parity
+    # (see toio_motion_node.py).
+    motion_node = Node(
+        package='toio_gazebo',
+        executable='toio_motion_node.py',
+        name='toio_motion',
+        namespace=namespace,
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     bridge = Node(
@@ -185,6 +220,7 @@ def launch_setup(context, *args, **kwargs):
         bridge,
         led_node,
         sound_node,
+        motion_node,
         spawn_model,
         center_static_transform_publisher_cmd,
     ]
@@ -251,6 +287,19 @@ def generate_launch_description():
                     'this is mute or full volume only: 0 is mute and every '
                     'other value is the maximum volume')
 
+    declare_imu_interval_ms_cmd = DeclareLaunchArgument(
+        'imu_interval_ms',
+        default_value='100',
+        description='Notification interval of the posture angle behind '
+                    '/toio/imu, in milliseconds. The IMU sensor update rate is '
+                    '1000/imu_interval_ms Hz (default 10Hz)')
+
+    declare_publish_odom_cmd = DeclareLaunchArgument(
+        'publish_odom',
+        default_value='True',
+        description='Publish /odom and the map -> odom -> center TF tree. '
+                    'False restores the plain map -> center transform')
+
     # Create the launch description and populate
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
@@ -260,6 +309,8 @@ def generate_launch_description():
     ld.add_action(declare_led_duration_ms_cmd)
     ld.add_action(declare_led_light_intensity_cmd)
     ld.add_action(declare_sound_volume_cmd)
+    ld.add_action(declare_imu_interval_ms_cmd)
+    ld.add_action(declare_publish_odom_cmd)
     ld.add_action(declare_use_simulator_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_robot_state_pub_cmd)
