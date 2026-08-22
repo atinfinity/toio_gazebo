@@ -26,7 +26,7 @@ from launch.actions import (
     OpaqueFunction,
     RegisterEventHandler,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -61,6 +61,8 @@ def generate_launch_description():
     robot_name = LaunchConfiguration('robot_name')
     robot_sdf = LaunchConfiguration('robot_sdf')
     frame_prefix = LaunchConfiguration('frame_prefix')
+    imu_interval_ms = LaunchConfiguration('imu_interval_ms')
+    publish_odom = LaunchConfiguration('publish_odom')
     led_duration_ms = LaunchConfiguration('led_duration_ms')
     led_light_intensity = LaunchConfiguration('led_light_intensity')
     sound_volume = LaunchConfiguration('sound_volume')
@@ -145,6 +147,21 @@ def generate_launch_description():
                     'other value is the maximum volume',
     )
 
+    declare_imu_interval_ms_cmd = DeclareLaunchArgument(
+        'imu_interval_ms',
+        default_value='100',
+        description='Notification interval of the posture angle behind '
+                    '/toio/imu, in milliseconds (IMU update rate is '
+                    '1000/imu_interval_ms Hz, default 10Hz)',
+    )
+
+    declare_publish_odom_cmd = DeclareLaunchArgument(
+        'publish_odom',
+        default_value='True',
+        description='Publish /odom and the map -> odom -> center TF tree. '
+                    'False restores the plain map -> center transform',
+    )
+
     # The clock is shared by all robots, so it is bridged here instead of
     # spawn_toio.launch.py to avoid duplicated bridges in multi-robot setup.
     clock_bridge = Node(
@@ -156,12 +173,40 @@ def generate_launch_description():
         output='screen',
     )
 
+    # With publish_odom (default), an identity 'odom' frame is inserted between
+    # map and the world frame so the tree is map -> odom -> center, mirroring
+    # toio_ros2. map -> odom is identity and odom -> center comes from the
+    # ground-truth model pose, so map -> center stays mat-perfect (the /odom
+    # topic carries the wheel odometry separately). With publish_odom:=False
+    # the tree is the plain map -> world frame.
     map_static_transform_publisher_cmd = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='map_static_transform_publisher',
         output='screen',
+        condition=UnlessCondition(publish_odom),
         arguments=['0', '0', '0', '0', '0', '0', 'map', world_frame],
+    )
+
+    map_odom_static_transform_publisher_cmd = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='map_odom_static_transform_publisher',
+        output='screen',
+        condition=IfCondition(publish_odom),
+        arguments=['0', '0', '0', '0', '0', '0', 'map',
+                   PythonExpression(["'", frame_prefix, "' + 'odom'"])],
+    )
+
+    odom_world_static_transform_publisher_cmd = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='odom_world_static_transform_publisher',
+        output='screen',
+        condition=IfCondition(publish_odom),
+        arguments=['0', '0', '0', '0', '0', '0',
+                   PythonExpression(["'", frame_prefix, "' + 'odom'"]),
+                   world_frame],
     )
 
     # The SDF file for the world is a xacro file because we wanted to
@@ -210,6 +255,8 @@ def generate_launch_description():
                           'led_duration_ms': led_duration_ms,
                           'led_light_intensity': led_light_intensity,
                           'sound_volume': sound_volume,
+                          'imu_interval_ms': imu_interval_ms,
+                          'publish_odom': publish_odom,
                           'x_pose': pose['x'],
                           'y_pose': pose['y'],
                           'z_pose': pose['z'],
@@ -234,6 +281,8 @@ def generate_launch_description():
     ld.add_action(declare_led_duration_ms_cmd)
     ld.add_action(declare_led_light_intensity_cmd)
     ld.add_action(declare_sound_volume_cmd)
+    ld.add_action(declare_imu_interval_ms_cmd)
+    ld.add_action(declare_publish_odom_cmd)
 
     ld.add_action(set_env_vars_resources)
     ld.add_action(world_sdf_xacro)
@@ -244,5 +293,7 @@ def generate_launch_description():
 
     ld.add_action(clock_bridge)
     ld.add_action(map_static_transform_publisher_cmd)
+    ld.add_action(map_odom_static_transform_publisher_cmd)
+    ld.add_action(odom_world_static_transform_publisher_cmd)
 
     return ld
