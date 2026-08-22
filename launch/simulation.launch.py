@@ -26,7 +26,7 @@ from launch.actions import (
     OpaqueFunction,
     RegisterEventHandler,
 )
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.event_handlers import OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PythonExpression
@@ -173,40 +173,17 @@ def generate_launch_description():
         output='screen',
     )
 
-    # With publish_odom (default), an identity 'odom' frame is inserted between
-    # map and the world frame so the tree is map -> odom -> center, mirroring
-    # toio_ros2. map -> odom is identity and odom -> center comes from the
-    # ground-truth model pose, so map -> center stays mat-perfect (the /odom
-    # topic carries the wheel odometry separately). With publish_odom:=False
-    # the tree is the plain map -> world frame.
+    # map -> world frame is a single shared, identity transform for the whole
+    # Gazebo world. The per-robot 'odom' frame (map -> ... -> <ns>/odom ->
+    # <ns>/center) is inserted in spawn_toio.launch.py so that every robot,
+    # including the ones spawned into a running Gazebo, gets its own odom
+    # frame instead of hanging under the first robot's.
     map_static_transform_publisher_cmd = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='map_static_transform_publisher',
         output='screen',
-        condition=UnlessCondition(publish_odom),
         arguments=['0', '0', '0', '0', '0', '0', 'map', world_frame],
-    )
-
-    map_odom_static_transform_publisher_cmd = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='map_odom_static_transform_publisher',
-        output='screen',
-        condition=IfCondition(publish_odom),
-        arguments=['0', '0', '0', '0', '0', '0', 'map',
-                   PythonExpression(["'", frame_prefix, "' + 'odom'"])],
-    )
-
-    odom_world_static_transform_publisher_cmd = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='odom_world_static_transform_publisher',
-        output='screen',
-        condition=IfCondition(publish_odom),
-        arguments=['0', '0', '0', '0', '0', '0',
-                   PythonExpression(["'", frame_prefix, "' + 'odom'"]),
-                   world_frame],
     )
 
     # The SDF file for the world is a xacro file because we wanted to
@@ -293,7 +270,5 @@ def generate_launch_description():
 
     ld.add_action(clock_bridge)
     ld.add_action(map_static_transform_publisher_cmd)
-    ld.add_action(map_odom_static_transform_publisher_cmd)
-    ld.add_action(odom_world_static_transform_publisher_cmd)
 
     return ld
