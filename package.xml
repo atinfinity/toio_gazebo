@@ -23,6 +23,7 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
   <!-- aplay, used by toio_sound_node.py to play the sound effects -->
   <exec_depend>alsa-utils</exec_depend>
 
