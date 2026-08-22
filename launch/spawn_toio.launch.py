@@ -201,18 +201,49 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': use_sim_time}]
     )
 
-    # The pose bridge publishes the model pose as <world> -> <robot_name>,
-    # so connect the model frame to the root frame of the robot model.
-    center_static_transform_publisher_cmd = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='center_static_transform_publisher',
-        namespace=namespace,
-        output='screen',
-        arguments=['0', '0', '0', '0', '0', '0',
-                   robot_name, frame_prefix + 'center'],
-        parameters=[{'use_sim_time': use_sim_time}],
-    )
+    # The pose bridge publishes the model pose as <world> -> <robot_name>.
+    # Connect the model frame to the root frame of the robot model. With
+    # publish_odom, insert a per-robot identity odom frame in between so the
+    # tree is <world> -> <robot_name> -> <ns>/odom -> <ns>/center, mirroring
+    # toio_ros2's odom -> center (map -> <ns>/center stays the ground-truth
+    # pose; the /odom topic carries the wheel odometry). Doing it here rather
+    # than in simulation.launch gives every robot its own odom frame.
+    if publish_odom:
+        odom_frame_tfs = [
+            Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='odom_static_transform_publisher',
+                namespace=namespace,
+                output='screen',
+                arguments=['0', '0', '0', '0', '0', '0',
+                           robot_name, frame_prefix + 'odom'],
+                parameters=[{'use_sim_time': use_sim_time}],
+            ),
+            Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='center_static_transform_publisher',
+                namespace=namespace,
+                output='screen',
+                arguments=['0', '0', '0', '0', '0', '0',
+                           frame_prefix + 'odom', frame_prefix + 'center'],
+                parameters=[{'use_sim_time': use_sim_time}],
+            ),
+        ]
+    else:
+        odom_frame_tfs = [
+            Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                name='center_static_transform_publisher',
+                namespace=namespace,
+                output='screen',
+                arguments=['0', '0', '0', '0', '0', '0',
+                           robot_name, frame_prefix + 'center'],
+                parameters=[{'use_sim_time': use_sim_time}],
+            ),
+        ]
 
     return [
         remove_temp_bridge_file,
@@ -222,8 +253,7 @@ def launch_setup(context, *args, **kwargs):
         sound_node,
         motion_node,
         spawn_model,
-        center_static_transform_publisher_cmd,
-    ]
+    ] + odom_frame_tfs
 
 
 def generate_launch_description():
