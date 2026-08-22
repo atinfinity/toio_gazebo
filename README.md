@@ -19,6 +19,7 @@ sudo apt update
 mkdir -p ~/dev_ws/src
 cd ~/dev_ws/src
 git clone https://github.com/atinfinity/toio_description.git
+git clone https://github.com/atinfinity/toio_msgs.git
 git clone https://github.com/atinfinity/toio_gazebo.git
 cd ..
 rosdep install -y -i --from-paths src
