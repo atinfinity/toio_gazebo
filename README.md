@@ -38,6 +38,16 @@ An example of command is as follows:
 ros2 launch toio_gazebo simulation.launch.py world:=$HOME/dev_ws/src/toio_gazebo/worlds/toio_a4_map.sdf world_frame:=toio_a4_map
 ```
 
+## LED and sound
+
+The cube lights its indicator LED and plays sound effects on the same topics as
+the real cube, so the same commands work against the simulation and the
+hardware.
+
+![The indicator of the cube blinking through a sequence of colors](image/toio_led.gif)
+
+See [Topics and launch arguments](docs/topics.md) for the commands.
+
 ## Documentation
 
 - [Topics and launch arguments](docs/topics.md) — the ROS 2 interface of the simulated cube, with examples
