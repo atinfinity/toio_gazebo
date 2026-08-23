@@ -66,8 +66,8 @@ def parse_chargers(text):
 class BatteryModel:
     """Pure state-of-charge model, independent of ROS (unit-testable)."""
 
-    def __init__(self, initial_soc=1.0, discharge_rate=0.01,
-                 idle_discharge_rate=0.001, charge_rate=0.05, quantize_steps=0):
+    def __init__(self, initial_soc=1.0, discharge_rate=0.005,
+                 idle_discharge_rate=0.0005, charge_rate=0.05, quantize_steps=10):
         self.soc = max(0.0, min(1.0, initial_soc))
         self.discharge_rate = discharge_rate
         self.idle_discharge_rate = idle_discharge_rate
@@ -97,10 +97,10 @@ class ToioBatteryNode(Node):
         super().__init__('toio_battery')
 
         self.declare_parameter('initial_soc', 1.0)
-        self.declare_parameter('discharge_rate', 0.01)        # SoC/s while moving
-        self.declare_parameter('idle_discharge_rate', 0.001)  # SoC/s while idle
+        self.declare_parameter('discharge_rate', 0.005)        # SoC/s while moving
+        self.declare_parameter('idle_discharge_rate', 0.0005)  # SoC/s while idle
         self.declare_parameter('charge_rate', 0.05)           # SoC/s while charging
-        self.declare_parameter('quantize_steps', 0)           # 0 = off, 10 = 10 % steps
+        self.declare_parameter('quantize_steps', 10)           # 0 = off, 10 = 10 % steps
         self.declare_parameter('chargers', '')                # "x y r,..." in map frame
         self.declare_parameter('charge_after_idle_sec', 10.0)
         self.declare_parameter('frame_prefix', '')

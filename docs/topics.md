@@ -46,12 +46,12 @@ interfaces and which ones the simulation supports, stubs or leaves out, see
 | `imu_interval_ms` | `100` | Notification interval of the posture angle behind `/toio/imu`, in milliseconds. The IMU sensor update rate is `1000/imu_interval_ms` Hz (default 10Hz) |
 | `publish_odom` | `True` | Publish `/odom` and the `map -> odom -> center` TF tree. `False` restores the plain `map -> center` transform |
 | `publish_battery` | `False` | Publish the simulated `/toio/battery_state` above. Off by default; `True` makes Open-RMF `ChargeBattery` fire in sim |
-| `discharge_rate` | `0.01` | State of charge lost per second while moving (SoC/s). Raise it to reach `recharge_threshold` in a short demo |
-| `idle_discharge_rate` | `0.001` | State of charge lost per second while idle (SoC/s) |
+| `discharge_rate` | `0.005` | State of charge lost per second while moving (SoC/s). Still faster than a real cube; raise it further to reach `recharge_threshold` in a short demo |
+| `idle_discharge_rate` | `0.0005` | State of charge lost per second while idle (SoC/s) |
 | `charge_rate` | `0.05` | State of charge gained per second while charging (SoC/s) |
 | `chargers` | `""` | Charger positions `"x y radius,..."` in the `map` frame. When set, the cube charges only within a charger radius; when empty it falls back to charging after `charge_after_idle_sec` of standing still |
 | `charge_after_idle_sec` | `10.0` | Fallback (no `chargers` set): treat the cube as charging after standing still this long |
-| `quantize_steps` | `0` | Round the reported SoC to this many steps (`10` mirrors the real cube's 10 % increments); `0` reports the raw value |
+| `quantize_steps` | `10` | Round the reported SoC to this many steps. Default `10` mirrors the real cube's 10 % increments; set `0` for a smooth, continuous value |
 
 On the real cube these are parameters of the toio_ros2 node. Here they are
 launch arguments, because the LED is driven by a Gazebo plugin and the sound is
