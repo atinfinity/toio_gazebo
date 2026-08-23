@@ -86,7 +86,7 @@ class BatteryModel:
         return self.soc
 
     def reported(self):
-        """SoC as reported (quantized to ``quantize_steps`` if set)."""
+        """Return the charge to report, quantized when quantize_steps is set."""
         if self.quantize_steps > 0:
             return round(self.soc * self.quantize_steps) / self.quantize_steps
         return self.soc
