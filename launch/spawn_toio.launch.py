@@ -389,7 +389,7 @@ def generate_launch_description():
 
     declare_quantize_steps_cmd = DeclareLaunchArgument(
         'quantize_steps', default_value='10',
-        description="Round the reported SoC to this many steps. Default 10 "
+        description='Round the reported SoC to this many steps. Default 10 '
                     "mirrors the real cube's 10 %% increments; set 0 for a "
                     'smooth, continuous value (e.g. for a nicer demo readout)')
 
