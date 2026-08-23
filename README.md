@@ -52,5 +52,6 @@ See [Topics and launch arguments](docs/topics.md) for the commands.
 ## Documentation
 
 - [Topics and launch arguments](docs/topics.md) — the ROS 2 interface of the simulated cube, with examples
+- [toio_ros2 interface support](docs/toio_ros2_support.md) — which toio_ros2 topics / actions / services the simulation supports, stubs or leaves out
 - [Notes on the LED and the sound effects](docs/led_and_sound.md) — how the indicator and the sound are simulated
 - [Multi-robot simulation](docs/multi_robot.md) — spawning and driving several cubes

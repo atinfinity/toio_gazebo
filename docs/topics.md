@@ -2,7 +2,9 @@
 
 These match the interface of the real cube provided by
 [toio_ros2](https://github.com/atinfinity/toio_ros2), so the same commands work
-against the simulation and against the hardware.
+against the simulation and against the hardware. For the full list of toio_ros2
+interfaces and which ones the simulation supports, stubs or leaves out, see
+[toio_ros2 interface support](toio_ros2_support.md).
 
 ## Subscribed topics
 
