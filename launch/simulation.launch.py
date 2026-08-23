@@ -66,6 +66,14 @@ def generate_launch_description():
     led_duration_ms = LaunchConfiguration('led_duration_ms')
     led_light_intensity = LaunchConfiguration('led_light_intensity')
     sound_volume = LaunchConfiguration('sound_volume')
+    publish_battery = LaunchConfiguration('publish_battery')
+    initial_soc = LaunchConfiguration('initial_soc')
+    discharge_rate = LaunchConfiguration('discharge_rate')
+    idle_discharge_rate = LaunchConfiguration('idle_discharge_rate')
+    charge_rate = LaunchConfiguration('charge_rate')
+    quantize_steps = LaunchConfiguration('quantize_steps')
+    chargers = LaunchConfiguration('chargers')
+    charge_after_idle_sec = LaunchConfiguration('charge_after_idle_sec')
 
     # Declare the launch arguments
     declare_namespace_cmd = DeclareLaunchArgument(
@@ -162,6 +170,27 @@ def generate_launch_description():
                     'False restores the plain map -> center transform',
     )
 
+    declare_publish_battery_cmd = DeclareLaunchArgument(
+        'publish_battery', default_value='False',
+        description='Publish a simulated /toio/battery_state so RMF '
+                    'ChargeBattery can fire in sim (off by default)')
+    declare_initial_soc_cmd = DeclareLaunchArgument(
+        'initial_soc', default_value='1.0')
+    declare_discharge_rate_cmd = DeclareLaunchArgument(
+        'discharge_rate', default_value='0.01')
+    declare_idle_discharge_rate_cmd = DeclareLaunchArgument(
+        'idle_discharge_rate', default_value='0.001')
+    declare_charge_rate_cmd = DeclareLaunchArgument(
+        'charge_rate', default_value='0.05')
+    declare_quantize_steps_cmd = DeclareLaunchArgument(
+        'quantize_steps', default_value='0')
+    declare_chargers_cmd = DeclareLaunchArgument(
+        'chargers', default_value='',
+        description='Charger positions "x y radius,..." in the map frame; '
+                    'empty falls back to charging when idle')
+    declare_charge_after_idle_sec_cmd = DeclareLaunchArgument(
+        'charge_after_idle_sec', default_value='10.0')
+
     # The clock is shared by all robots, so it is bridged here instead of
     # spawn_toio.launch.py to avoid duplicated bridges in multi-robot setup.
     clock_bridge = Node(
@@ -234,6 +263,14 @@ def generate_launch_description():
                           'sound_volume': sound_volume,
                           'imu_interval_ms': imu_interval_ms,
                           'publish_odom': publish_odom,
+                          'publish_battery': publish_battery,
+                          'initial_soc': initial_soc,
+                          'discharge_rate': discharge_rate,
+                          'idle_discharge_rate': idle_discharge_rate,
+                          'charge_rate': charge_rate,
+                          'quantize_steps': quantize_steps,
+                          'chargers': chargers,
+                          'charge_after_idle_sec': charge_after_idle_sec,
                           'x_pose': pose['x'],
                           'y_pose': pose['y'],
                           'z_pose': pose['z'],
@@ -260,6 +297,14 @@ def generate_launch_description():
     ld.add_action(declare_sound_volume_cmd)
     ld.add_action(declare_imu_interval_ms_cmd)
     ld.add_action(declare_publish_odom_cmd)
+    ld.add_action(declare_publish_battery_cmd)
+    ld.add_action(declare_initial_soc_cmd)
+    ld.add_action(declare_discharge_rate_cmd)
+    ld.add_action(declare_idle_discharge_rate_cmd)
+    ld.add_action(declare_charge_rate_cmd)
+    ld.add_action(declare_quantize_steps_cmd)
+    ld.add_action(declare_chargers_cmd)
+    ld.add_action(declare_charge_after_idle_sec_cmd)
 
     ld.add_action(set_env_vars_resources)
     ld.add_action(world_sdf_xacro)

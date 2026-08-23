@@ -40,7 +40,7 @@ see [Topics and launch arguments](topics.md).
 | `/toio/motion` | toio_msgs/msg/MotionDetection | ⚠️ | **Stub.** Gazebo has no motion-detection equivalent, so a fixed value is published for parity: `horizontal` true, `posture` `POSTURE_TOP`, `collision` / `double_tap` / `shake` false / none |
 | `/toio/pose` | geometry_msgs/msg/PoseStamped | ❌ | Not published as a topic. The pose is available as the `map -> center` TF (ground truth); consumers that need it (e.g. the Open-RMF fleet adapter in sim) read it from TF |
 | `/toio/position_id_missed` | std_msgs/msg/Bool | ❌ | No mat / Position ID reading in sim, so there is nothing to miss |
-| `/toio/battery_state` | sensor_msgs/msg/BatteryState | ❌ | No battery model in sim |
+| `/toio/battery_state` | sensor_msgs/msg/BatteryState | ✅ | **Opt-in** (`publish_battery:=true`, off by default). A simulated SoC that drops while running and rises on a charger, so Open-RMF `ChargeBattery` can fire in sim. When off the topic is not published and the adapter reports 1.0, as before. See [Topics and launch arguments](topics.md#battery-and-open-rmf-chargebattery) |
 | `/toio/button` | std_msgs/msg/Bool | ❌ | No button in sim |
 | `/diagnostics` | diagnostic_msgs/msg/DiagnosticArray | ❌ | The `diagnostic_updater` health reporting of the hardware node is not reproduced |
 

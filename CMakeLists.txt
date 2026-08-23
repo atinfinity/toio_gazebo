@@ -41,6 +41,7 @@ install(
     scripts/toio_led_node.py
     scripts/toio_sound_node.py
     scripts/toio_motion_node.py
+    scripts/toio_battery_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -63,6 +64,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_toio_sound_node test/test_toio_sound_node.py)
   ament_add_pytest_test(test_toio_motion_node test/test_toio_motion_node.py)
+  ament_add_pytest_test(test_toio_battery_node test/test_toio_battery_node.py)
 endif()
 
 ament_package()
