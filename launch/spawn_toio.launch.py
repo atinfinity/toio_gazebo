@@ -376,11 +376,11 @@ def generate_launch_description():
         description='Initial state of charge (0.0-1.0) for the simulated battery')
 
     declare_discharge_rate_cmd = DeclareLaunchArgument(
-        'discharge_rate', default_value='0.01',
+        'discharge_rate', default_value='0.005',
         description='State of charge lost per second while moving (SoC/s)')
 
     declare_idle_discharge_rate_cmd = DeclareLaunchArgument(
-        'idle_discharge_rate', default_value='0.001',
+        'idle_discharge_rate', default_value='0.0005',
         description='State of charge lost per second while idle (SoC/s)')
 
     declare_charge_rate_cmd = DeclareLaunchArgument(
@@ -388,9 +388,10 @@ def generate_launch_description():
         description='State of charge gained per second while charging (SoC/s)')
 
     declare_quantize_steps_cmd = DeclareLaunchArgument(
-        'quantize_steps', default_value='0',
-        description='Round the reported SoC to this many steps (10 mirrors the '
-                    "real cube's 10 %% increments); 0 reports the raw value")
+        'quantize_steps', default_value='10',
+        description="Round the reported SoC to this many steps. Default 10 "
+                    "mirrors the real cube's 10 %% increments; set 0 for a "
+                    'smooth, continuous value (e.g. for a nicer demo readout)')
 
     declare_chargers_cmd = DeclareLaunchArgument(
         'chargers', default_value='',

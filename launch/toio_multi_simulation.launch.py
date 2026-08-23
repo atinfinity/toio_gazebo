@@ -63,13 +63,13 @@ def generate_launch_description():
         description='Charger positions "x y radius,..." in the map frame; '
                     'empty falls back to charging when idle')
     declare_discharge_rate_cmd = DeclareLaunchArgument(
-        'discharge_rate', default_value='0.01')
+        'discharge_rate', default_value='0.005')
     declare_idle_discharge_rate_cmd = DeclareLaunchArgument(
-        'idle_discharge_rate', default_value='0.001')
+        'idle_discharge_rate', default_value='0.0005')
     declare_charge_rate_cmd = DeclareLaunchArgument(
         'charge_rate', default_value='0.05')
     declare_quantize_steps_cmd = DeclareLaunchArgument(
-        'quantize_steps', default_value='0')
+        'quantize_steps', default_value='10')
 
     declare_simulator_cmd = DeclareLaunchArgument(
         'headless', default_value='False', description='Whether to execute gzclient)'
