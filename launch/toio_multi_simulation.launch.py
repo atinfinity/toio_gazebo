@@ -30,12 +30,46 @@ def generate_launch_description():
     headless = LaunchConfiguration('headless')
     world = LaunchConfiguration('world')
     world_frame = LaunchConfiguration('world_frame')
+    publish_battery = LaunchConfiguration('publish_battery')
+    chargers = LaunchConfiguration('chargers')
+    discharge_rate = LaunchConfiguration('discharge_rate')
+    idle_discharge_rate = LaunchConfiguration('idle_discharge_rate')
+    charge_rate = LaunchConfiguration('charge_rate')
+    quantize_steps = LaunchConfiguration('quantize_steps')
+
+    # Battery is opt-in (off by default) and, when on, both cubes share the
+    # same charger list and rates. See spawn_toio.launch.py for the semantics.
+    battery_args = {
+        'publish_battery': publish_battery,
+        'chargers': chargers,
+        'discharge_rate': discharge_rate,
+        'idle_discharge_rate': idle_discharge_rate,
+        'charge_rate': charge_rate,
+        'quantize_steps': quantize_steps,
+    }
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
         default_value='True',
         description='Use simulation (Gazebo) clock if true',
     )
+
+    declare_publish_battery_cmd = DeclareLaunchArgument(
+        'publish_battery', default_value='False',
+        description='Publish a simulated /toioN/toio/battery_state for both '
+                    'cubes so RMF ChargeBattery can fire in sim (off by default)')
+    declare_chargers_cmd = DeclareLaunchArgument(
+        'chargers', default_value='',
+        description='Charger positions "x y radius,..." in the map frame; '
+                    'empty falls back to charging when idle')
+    declare_discharge_rate_cmd = DeclareLaunchArgument(
+        'discharge_rate', default_value='0.01')
+    declare_idle_discharge_rate_cmd = DeclareLaunchArgument(
+        'idle_discharge_rate', default_value='0.001')
+    declare_charge_rate_cmd = DeclareLaunchArgument(
+        'charge_rate', default_value='0.05')
+    declare_quantize_steps_cmd = DeclareLaunchArgument(
+        'quantize_steps', default_value='0')
 
     declare_simulator_cmd = DeclareLaunchArgument(
         'headless', default_value='False', description='Whether to execute gzclient)'
@@ -65,7 +99,8 @@ def generate_launch_description():
                           'world': world,
                           'world_frame': world_frame,
                           'x_pose': '0.05',
-                          'y_pose': '-0.05'}.items())
+                          'y_pose': '-0.05',
+                          **battery_args}.items())
 
     # Spawn the second robot into the running Gazebo
     spawn_toio2 = IncludeLaunchDescription(
@@ -76,13 +111,20 @@ def generate_launch_description():
                           'frame_prefix': 'toio2/',
                           'use_sim_time': use_sim_time,
                           'x_pose': '0.24',
-                          'y_pose': '-0.14'}.items())
+                          'y_pose': '-0.14',
+                          **battery_args}.items())
 
     ld = LaunchDescription()
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_simulator_cmd)
     ld.add_action(declare_world_cmd)
     ld.add_action(declare_world_frame_cmd)
+    ld.add_action(declare_publish_battery_cmd)
+    ld.add_action(declare_chargers_cmd)
+    ld.add_action(declare_discharge_rate_cmd)
+    ld.add_action(declare_idle_discharge_rate_cmd)
+    ld.add_action(declare_charge_rate_cmd)
+    ld.add_action(declare_quantize_steps_cmd)
 
     ld.add_action(simulation_toio1)
     ld.add_action(spawn_toio2)

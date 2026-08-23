@@ -173,6 +173,39 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{'use_sim_time': use_sim_time}],
     )
 
+    # Gazebo has no battery, so an opt-in node models the state of charge and
+    # publishes it on /toio/battery_state (the topic the real cube and
+    # toio_fleet_adapter use) so RMF's ChargeBattery can fire in simulation.
+    # Off by default: without it the reported SoC stays 1.0, as before.
+    battery_node = Node(
+        condition=IfCondition(LaunchConfiguration('publish_battery')),
+        package='toio_gazebo',
+        executable='toio_battery_node.py',
+        name='toio_battery',
+        namespace=namespace,
+        output='screen',
+        parameters=[
+            {
+                'use_sim_time': use_sim_time,
+                'frame_prefix': frame_prefix,
+                'initial_soc': float(
+                    LaunchConfiguration('initial_soc').perform(context)),
+                'discharge_rate': float(
+                    LaunchConfiguration('discharge_rate').perform(context)),
+                'idle_discharge_rate': float(
+                    LaunchConfiguration('idle_discharge_rate').perform(context)),
+                'charge_rate': float(
+                    LaunchConfiguration('charge_rate').perform(context)),
+                'quantize_steps': int(
+                    LaunchConfiguration('quantize_steps').perform(context)),
+                'chargers': LaunchConfiguration('chargers').perform(context),
+                'charge_after_idle_sec': float(
+                    LaunchConfiguration('charge_after_idle_sec').perform(
+                        context)),
+            }
+        ],
+    )
+
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -252,6 +285,7 @@ def launch_setup(context, *args, **kwargs):
         led_node,
         sound_node,
         motion_node,
+        battery_node,
         spawn_model,
     ] + odom_frame_tfs
 
@@ -330,6 +364,46 @@ def generate_launch_description():
         description='Publish /odom and the map -> odom -> center TF tree. '
                     'False restores the plain map -> center transform')
 
+    declare_publish_battery_cmd = DeclareLaunchArgument(
+        'publish_battery',
+        default_value='False',
+        description='Publish a simulated /toio/battery_state (SoC that drops '
+                    'while running and rises on a charger) so RMF ChargeBattery '
+                    'can fire in sim. Off by default: the reported SoC stays 1.0')
+
+    declare_initial_soc_cmd = DeclareLaunchArgument(
+        'initial_soc', default_value='1.0',
+        description='Initial state of charge (0.0-1.0) for the simulated battery')
+
+    declare_discharge_rate_cmd = DeclareLaunchArgument(
+        'discharge_rate', default_value='0.01',
+        description='State of charge lost per second while moving (SoC/s)')
+
+    declare_idle_discharge_rate_cmd = DeclareLaunchArgument(
+        'idle_discharge_rate', default_value='0.001',
+        description='State of charge lost per second while idle (SoC/s)')
+
+    declare_charge_rate_cmd = DeclareLaunchArgument(
+        'charge_rate', default_value='0.05',
+        description='State of charge gained per second while charging (SoC/s)')
+
+    declare_quantize_steps_cmd = DeclareLaunchArgument(
+        'quantize_steps', default_value='0',
+        description='Round the reported SoC to this many steps (10 mirrors the '
+                    "real cube's 10 %% increments); 0 reports the raw value")
+
+    declare_chargers_cmd = DeclareLaunchArgument(
+        'chargers', default_value='',
+        description='Charger positions in the map frame as "x y radius,...". '
+                    'When set, the cube charges only within a charger radius; '
+                    'when empty it falls back to charging after '
+                    'charge_after_idle_sec of standing still')
+
+    declare_charge_after_idle_sec_cmd = DeclareLaunchArgument(
+        'charge_after_idle_sec', default_value='10.0',
+        description='Fallback (no chargers set): treat the cube as charging '
+                    'after it has stood still this many seconds')
+
     # Create the launch description and populate
     ld = LaunchDescription()
     ld.add_action(declare_namespace_cmd)
@@ -341,6 +415,14 @@ def generate_launch_description():
     ld.add_action(declare_sound_volume_cmd)
     ld.add_action(declare_imu_interval_ms_cmd)
     ld.add_action(declare_publish_odom_cmd)
+    ld.add_action(declare_publish_battery_cmd)
+    ld.add_action(declare_initial_soc_cmd)
+    ld.add_action(declare_discharge_rate_cmd)
+    ld.add_action(declare_idle_discharge_rate_cmd)
+    ld.add_action(declare_charge_rate_cmd)
+    ld.add_action(declare_quantize_steps_cmd)
+    ld.add_action(declare_chargers_cmd)
+    ld.add_action(declare_charge_after_idle_sec_cmd)
     ld.add_action(declare_use_simulator_cmd)
     ld.add_action(declare_use_sim_time_cmd)
     ld.add_action(declare_use_robot_state_pub_cmd)

@@ -26,6 +26,7 @@ interfaces and which ones the simulation supports, stubs or leaves out, see
 | `/odom` | [nav_msgs/msg/Odometry](https://docs.ros2.org/latest/api/nav_msgs/msg/Odometry.html) | Wheel odometry at 20Hz (`odom -> center`), only when `publish_odom` is true. Mirrors the `/odom` of [toio_ros2](https://github.com/atinfinity/toio_ros2). Note: the pose in this message is the wheel integration (it drifts), while the `map -> odom -> center` TF is held at the ground-truth pose — so `/odom` and the TF can differ, a simulation simplification |
 | `/toio/imu` | [sensor_msgs/msg/Imu](https://docs.ros2.org/latest/api/sensor_msgs/msg/Imu.html) | Orientation of the cube in the `center` frame every `imu_interval_ms`. Unlike the real cube (orientation only), the Gazebo values for angular velocity and linear acceleration are passed through as-is |
 | `/toio/motion` | [toio_msgs/msg/MotionDetection](https://github.com/atinfinity/toio_msgs) | **Stub.** Gazebo has no motion-detection equivalent, so this is a fixed value for interface parity: `horizontal` true, `posture` `POSTURE_TOP`, and `collision` / `double_tap` / `shake` always false/none. `collision_threshold` / `horizontal_threshold` are accepted but ignored |
+| `/toio/battery_state` | [sensor_msgs/msg/BatteryState](https://docs.ros2.org/latest/api/sensor_msgs/msg/BatteryState.html) | **Opt-in** (`publish_battery:=true`, off by default). Simulated state of charge that drops while the cube runs and rises on a charger, so Open-RMF's `ChargeBattery` can fire in sim. When off, the topic is not published and the fleet adapter reports 1.0, as before. See below |
 
 ## Launch arguments
 
@@ -44,10 +45,34 @@ interfaces and which ones the simulation supports, stubs or leaves out, see
 | `sound_volume` | `255` | Volume of `/toio/sound`. Per the toio specification this is mute or full volume only: `0` is mute and every other value is the maximum volume |
 | `imu_interval_ms` | `100` | Notification interval of the posture angle behind `/toio/imu`, in milliseconds. The IMU sensor update rate is `1000/imu_interval_ms` Hz (default 10Hz) |
 | `publish_odom` | `True` | Publish `/odom` and the `map -> odom -> center` TF tree. `False` restores the plain `map -> center` transform |
+| `publish_battery` | `False` | Publish the simulated `/toio/battery_state` above. Off by default; `True` makes Open-RMF `ChargeBattery` fire in sim |
+| `discharge_rate` | `0.01` | State of charge lost per second while moving (SoC/s). Raise it to reach `recharge_threshold` in a short demo |
+| `idle_discharge_rate` | `0.001` | State of charge lost per second while idle (SoC/s) |
+| `charge_rate` | `0.05` | State of charge gained per second while charging (SoC/s) |
+| `chargers` | `""` | Charger positions `"x y radius,..."` in the `map` frame. When set, the cube charges only within a charger radius; when empty it falls back to charging after `charge_after_idle_sec` of standing still |
+| `charge_after_idle_sec` | `10.0` | Fallback (no `chargers` set): treat the cube as charging after standing still this long |
+| `quantize_steps` | `0` | Round the reported SoC to this many steps (`10` mirrors the real cube's 10 % increments); `0` reports the raw value |
 
 On the real cube these are parameters of the toio_ros2 node. Here they are
 launch arguments, because the LED is driven by a Gazebo plugin and the sound is
 played by a separate node.
+
+### Battery and Open-RMF ChargeBattery
+
+`publish_battery` is off by default so the simulation matches the real cube's
+"pose comes from Gazebo, battery is not modelled" behaviour and existing demos
+are unchanged (the fleet adapter reports a fixed 1.0 SoC). Turn it on to let
+Open-RMF's automatic `ChargeBattery` task fire in simulation: the reported SoC
+drops as the cube runs, and once RMF predicts it will fall below the fleet's
+`recharge_threshold` it sends the robot to its charger, where the SoC rises back
+to `recharge_soc`. The fleet adapter already subscribes `/toioN/toio/battery_state`
+and needs no change. Example (fast drain, charge only on the A3 chargers):
+
+```bash
+ros2 launch toio_gazebo toio_multi_simulation.launch.py \
+  publish_battery:=true discharge_rate:=0.02 \
+  chargers:="0.06 -0.15 0.06, 0.37 -0.15 0.06"
+```
 
 ## Examples
 
